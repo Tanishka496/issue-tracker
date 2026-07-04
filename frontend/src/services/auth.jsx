@@ -9,5 +9,5 @@ const api = (path, body) =>
     return data;
   });
 
-export const register = (payload) => api("/api/auth/register", payload);
-export const login = (payload) => api("/api/auth/login", payload);
+export const register = (payload) => api("http://localhost:5000/api/auth/register", payload);
+export const login = (payload) => api("http://localhost:5000/api/auth/login", payload);
