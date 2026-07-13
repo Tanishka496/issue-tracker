@@ -272,6 +272,8 @@ export default function ProjectDetail() {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskPriority, setTaskPriority] = useState('medium');
   const [taskAssignee, setTaskAssignee] = useState('');
   const [editingTaskId, setEditingTaskId] = useState('');
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
@@ -280,7 +282,8 @@ export default function ProjectDetail() {
   const [error, setError] = useState('');
   const currentUserId = getCurrentUserId();
 
-  const taskStatuses = ['todo', 'in progress', 'done'];
+  const taskStatuses = ['open', 'in-progress', 'done'];
+  const taskPriorities = ['low', 'medium', 'high'];
 
   const loadProject = async () => {
     try {
@@ -319,10 +322,14 @@ export default function ProjectDetail() {
     try {
       await createTask(projectId, {
         title: taskTitle,
-        status: 'todo',
+        description: taskDescription,
+        status: 'open',
+        priority: taskPriority,
         assignedTo: taskAssignee || undefined,
       });
       setTaskTitle('');
+      setTaskDescription('');
+      setTaskPriority('medium');
       setTaskAssignee('');
       loadTasks();
     } catch (err) {
@@ -417,7 +424,7 @@ export default function ProjectDetail() {
   if (!project) return <p>Project not found</p>;
 
   const groupedTasks = taskStatuses.reduce((acc, status) => {
-    acc[status] = tasks.filter(task => (task.status || 'todo') === status);
+    acc[status] = tasks.filter(task => (task.status || 'open') === status);
     return acc;
   }, {});
 
@@ -426,6 +433,7 @@ export default function ProjectDetail() {
       <div style={styles.shell}>
         <div style={styles.topBar}>
           <button onClick={() => navigate('/home')} style={styles.backButton}>← Back to projects</button>
+          <button onClick={() => navigate('/dashboard')} style={styles.backButton}>Analytics Dashboard</button>
           {project.createdBy && project.createdBy._id === currentUserId && (
             <button type="button" onClick={handleDeleteProject} style={styles.deleteProjectButton}>
               Soft Delete Project
@@ -494,6 +502,22 @@ export default function ProjectDetail() {
               required
               style={styles.input}
             />
+            <textarea
+              value={taskDescription}
+              onChange={e => setTaskDescription(e.target.value)}
+              placeholder="Task description (optional)"
+              rows={3}
+              style={{ ...styles.input, resize: 'vertical' }}
+            />
+            <select
+              value={taskPriority}
+              onChange={e => setTaskPriority(e.target.value)}
+              style={styles.input}
+            >
+              {taskPriorities.map(priority => (
+                <option key={priority} value={priority}>{priority}</option>
+              ))}
+            </select>
             <select
               value={taskAssignee}
               onChange={e => setTaskAssignee(e.target.value)}
@@ -524,7 +548,7 @@ export default function ProjectDetail() {
             <div style={styles.taskBoard}>
               {taskStatuses.map(status => (
                 <section key={status} style={styles.lane}>
-                  <h3 style={styles.laneTitle}>{status}</h3>
+                  <h3 style={styles.laneTitle}>{status.replace(/-/g, ' ')}</h3>
                   {groupedTasks[status].length === 0 ? (
                     <p style={{ color: '#64748b', margin: 0 }}>No tasks</p>
                   ) : (
@@ -539,12 +563,20 @@ export default function ProjectDetail() {
                                 style={styles.input}
                               />
                             ) : (
-                              <h4 style={{ margin: '0 0 8px', fontSize: '18px', color: '#0f172a' }}>{task.title}</h4>
+                              <>
+                                <h4 style={{ margin: '0 0 8px', fontSize: '18px', color: '#0f172a' }}>{task.title}</h4>
+                                {task.description && (
+                                  <p style={{ margin: '0 0 8px', color: '#64748b', lineHeight: 1.5 }}>{task.description}</p>
+                                )}
+                              </>
                             )}
 
                             <div style={styles.badgeRow}>
                               <span style={{ ...styles.badge, ...styles.badgeBlue }}>
                                 {new Date(task.createdAt).toLocaleDateString()}
+                              </span>
+                              <span style={{ ...styles.badge, ...styles.badgeYellow }}>
+                                Priority: {task.priority || 'medium'}
                               </span>
                               <span style={{ ...styles.badge, ...styles.badgeGreen }}>
                                 Created by: {task.createdBy ? task.createdBy.name : 'Unknown'}
@@ -559,12 +591,12 @@ export default function ProjectDetail() {
                             <label style={{ display: 'grid', gap: '6px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>
                               Status
                               <select
-                                value={task.status || 'todo'}
+                                value={task.status || 'open'}
                                 onChange={(e) => handleTaskStatusChange(task._id, e.target.value)}
                                 style={styles.statusSelect}
                               >
-                                <option value="todo">todo</option>
-                                <option value="in progress">in progress</option>
+                                <option value="open">open</option>
+                                <option value="in-progress">in-progress</option>
                                 <option value="done">done</option>
                               </select>
                             </label>

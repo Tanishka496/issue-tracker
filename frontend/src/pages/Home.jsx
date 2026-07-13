@@ -341,8 +341,8 @@ export default function Home() {
         if (result.status !== 'fulfilled') return accumulator;
 
         const { tasks } = result.value;
-        const activeTaskCount = tasks.filter(task => (task.status || 'todo') !== 'done').length;
-        const completedTaskCount = tasks.filter(task => (task.status || 'todo') === 'done').length;
+        const activeTaskCount = tasks.filter(task => (task.status || 'open') !== 'done').length;
+        const completedTaskCount = tasks.filter(task => (task.status || 'open') === 'done').length;
 
         accumulator.active += activeTaskCount;
         accumulator.completed += completedTaskCount;
@@ -454,6 +454,9 @@ export default function Home() {
               Active projects stay front and center, while deleted ones remain available to restore.
             </p>
             <div style={styles.heroActions}>
+              <button type="button" onClick={() => navigate('/dashboard')} style={styles.logoutButton}>
+                Analytics Dashboard
+              </button>
               <span style={{ ...styles.chip, background: 'rgba(255,255,255,0.12)', color: '#fff' }}>Members only tasks</span>
               <span style={{ ...styles.chip, background: 'rgba(255,255,255,0.12)', color: '#fff' }}>Soft delete enabled</span>
               <span style={{ ...styles.chip, background: 'rgba(255,255,255,0.12)', color: '#fff' }}>Kanban task board</span>

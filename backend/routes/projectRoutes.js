@@ -3,7 +3,12 @@ const router = express.Router();
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 const User = require('../models/User');
+const Activity = require('../models/Activity');
 const auth = require('../middleware/auth');
+const { getUserName, recordActivity } = require('../utils/activityLogger');
+
+const ALLOWED_STATUSES = ['open', 'in-progress', 'done'];
+const ALLOWED_PRIORITIES = ['low', 'medium', 'high'];
 
 const loadProjectForMember = async (projectId, userId) => {
     const project = await Project.findById(projectId);
@@ -145,6 +150,25 @@ router.patch('/:id/restore', auth, async (req, res) => {
     }
 });
 
+// Get project activity feed
+router.get('/:id/activities', auth, async (req, res) => {
+    try {
+        const membership = await loadProjectForMember(req.params.id, req.user.id);
+        if (membership.error) return res.status(membership.error.status).json({ message: membership.error.message });
+
+        const activities = await Activity.find({ project: req.params.id })
+            .populate('user', 'name email')
+            .populate('task', 'title')
+            .sort({ createdAt: -1 })
+            .limit(50);
+
+        res.json(activities);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Get tasks for a project
 router.get('/:id/tasks', auth, async (req, res) => {
     try {
@@ -168,8 +192,16 @@ router.post('/:id/tasks', auth, async (req, res) => {
         const membership = await loadProjectForMember(req.params.id, req.user.id);
         if (membership.error) return res.status(membership.error.status).json({ message: membership.error.message });
 
-        const { title, status, assignedTo } = req.body;
+        const { title, description, status, priority, assignedTo } = req.body;
         if (!title) return res.status(400).json({ message: 'Task title required' });
+
+        if (status && !ALLOWED_STATUSES.includes(status)) {
+            return res.status(400).json({ message: 'Invalid task status' });
+        }
+
+        if (priority && !ALLOWED_PRIORITIES.includes(priority)) {
+            return res.status(400).json({ message: 'Invalid task priority' });
+        }
 
         let assignedUserId = null;
         if (assignedTo) {
@@ -187,14 +219,30 @@ router.post('/:id/tasks', auth, async (req, res) => {
 
         const task = new Task({
             title,
+            description: description || '',
             project: req.params.id,
             createdBy: req.user.id,
             assignedTo: assignedUserId,
-            status: status || 'todo'
+            status: status || 'open',
+            priority: priority || 'medium'
         });
 
         await task.save();
-        res.status(201).json(task);
+
+        const userName = await getUserName(req.user.id);
+        await recordActivity({
+            projectId: req.params.id,
+            taskId: task._id,
+            userId: req.user.id,
+            type: 'created',
+            message: `${userName} created issue "${task.title}"`
+        });
+
+        const populatedTask = await Task.findById(task._id)
+            .populate('createdBy', 'name email')
+            .populate('assignedTo', 'name email');
+
+        res.status(201).json(populatedTask);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });
@@ -207,7 +255,7 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
         const membership = await loadProjectForMember(req.params.id, req.user.id);
         if (membership.error) return res.status(membership.error.status).json({ message: membership.error.message });
 
-        const { title, status, assignedTo } = req.body;
+        const { title, description, status, priority, assignedTo } = req.body;
         const update = {};
 
         if (title !== undefined) {
@@ -217,12 +265,22 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
             update.title = title.trim();
         }
 
+        if (description !== undefined) {
+            update.description = description;
+        }
+
         if (status !== undefined) {
-            const allowedStatuses = ['todo', 'in progress', 'done'];
-            if (!allowedStatuses.includes(status)) {
+            if (!ALLOWED_STATUSES.includes(status)) {
                 return res.status(400).json({ message: 'Invalid task status' });
             }
             update.status = status;
+        }
+
+        if (priority !== undefined) {
+            if (!ALLOWED_PRIORITIES.includes(priority)) {
+                return res.status(400).json({ message: 'Invalid task priority' });
+            }
+            update.priority = priority;
         }
 
         if (assignedTo !== undefined) {
@@ -241,6 +299,9 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
             }
         }
 
+        const existingTask = await Task.findOne({ _id: req.params.taskId, project: req.params.id });
+        if (!existingTask) return res.status(404).json({ message: 'Not found' });
+
         const task = await Task.findOneAndUpdate(
             { _id: req.params.taskId, project: req.params.id },
             update,
@@ -250,6 +311,40 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
             .populate('assignedTo', 'name email');
 
         if (!task) return res.status(404).json({ message: 'Not found' });
+
+        const userName = await getUserName(req.user.id);
+        if (status !== undefined && status !== existingTask.status) {
+            const action = status === 'done' ? 'closed' : `changed status of`;
+            const detail = status === 'done' ? '' : ` to ${status.replace('-', ' ')}`;
+            await recordActivity({
+                projectId: req.params.id,
+                taskId: task._id,
+                userId: req.user.id,
+                type: 'status_changed',
+                message: status === 'done'
+                    ? `${userName} closed issue "${task.title}"`
+                    : `${userName} ${action} "${task.title}"${detail}`
+            });
+        } else if (assignedTo !== undefined) {
+            const assigneeName = task.assignedTo
+                ? (task.assignedTo.name || task.assignedTo.email)
+                : 'Unassigned';
+            await recordActivity({
+                projectId: req.params.id,
+                taskId: task._id,
+                userId: req.user.id,
+                type: 'assigned',
+                message: `${userName} assigned "${task.title}" to ${assigneeName}`
+            });
+        } else {
+            await recordActivity({
+                projectId: req.params.id,
+                taskId: task._id,
+                userId: req.user.id,
+                type: 'updated',
+                message: `${userName} updated issue "${task.title}"`
+            });
+        }
 
         res.json(task);
     } catch (err) {
@@ -275,6 +370,9 @@ router.patch('/:id/tasks/:taskId/assignee', auth, async (req, res) => {
             }
         }
 
+        const existingTask = await Task.findOne({ _id: req.params.taskId, project: req.params.id });
+        if (!existingTask) return res.status(404).json({ message: 'Not found' });
+
         const task = await Task.findOneAndUpdate(
             { _id: req.params.taskId, project: req.params.id },
             { assignedTo: assignedTo || null },
@@ -284,6 +382,18 @@ router.patch('/:id/tasks/:taskId/assignee', auth, async (req, res) => {
             .populate('assignedTo', 'name email');
 
         if (!task) return res.status(404).json({ message: 'Not found' });
+
+        const userName = await getUserName(req.user.id);
+        const assigneeName = task.assignedTo
+            ? (task.assignedTo.name || task.assignedTo.email)
+            : 'Unassigned';
+        await recordActivity({
+            projectId: req.params.id,
+            taskId: task._id,
+            userId: req.user.id,
+            type: 'assigned',
+            message: `${userName} assigned "${task.title}" to ${assigneeName}`
+        });
 
         res.json(task);
     } catch (err) {
@@ -299,19 +409,36 @@ router.patch('/:id/tasks/:taskId/status', auth, async (req, res) => {
         if (membership.error) return res.status(membership.error.status).json({ message: membership.error.message });
 
         const { status } = req.body;
-        const allowedStatuses = ['todo', 'in progress', 'done'];
 
-        if (!allowedStatuses.includes(status)) {
+        if (!ALLOWED_STATUSES.includes(status)) {
             return res.status(400).json({ message: 'Invalid task status' });
         }
+
+        const existingTask = await Task.findOne({ _id: req.params.taskId, project: req.params.id });
+        if (!existingTask) return res.status(404).json({ message: 'Not found' });
 
         const task = await Task.findOneAndUpdate(
             { _id: req.params.taskId, project: req.params.id },
             { status },
             { new: true }
-        );
+        )
+            .populate('createdBy', 'name email')
+            .populate('assignedTo', 'name email');
 
         if (!task) return res.status(404).json({ message: 'Not found' });
+
+        if (status !== existingTask.status) {
+            const userName = await getUserName(req.user.id);
+            await recordActivity({
+                projectId: req.params.id,
+                taskId: task._id,
+                userId: req.user.id,
+                type: 'status_changed',
+                message: status === 'done'
+                    ? `${userName} closed issue "${task.title}"`
+                    : `${userName} changed status of "${task.title}" to ${status.replace('-', ' ')}`
+            });
+        }
 
         res.json(task);
     } catch (err) {
