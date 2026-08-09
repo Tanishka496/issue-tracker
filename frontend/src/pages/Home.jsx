@@ -47,6 +47,21 @@ const styles = {
     margin: '6px 0 14px',
     color: '#fff',
   },
+  appBrand: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '9px 14px',
+    borderRadius: '999px',
+    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(99, 102, 241, 0.32))',
+    border: '1px solid rgba(255,255,255,0.14)',
+    color: '#fff',
+    fontSize: '12px',
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.2)',
+  },
   heroText: {
     fontSize: '16px',
     lineHeight: 1.6,
@@ -445,7 +460,7 @@ export default function Home() {
         <div style={styles.hero}>
           <section style={styles.heroCard}>
             <div style={styles.projectTitleBar}>
-              <span style={{ ...styles.chip, background: 'rgba(255,255,255,0.1)', color: '#e2e8f0' }}>Issue Tracker</span>
+              <span style={styles.appBrand}>TaskForge</span>
               <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
             </div>
             <h1 style={styles.heroTitle}>Project dashboard</h1>

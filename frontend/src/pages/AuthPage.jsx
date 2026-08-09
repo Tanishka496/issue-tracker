@@ -34,9 +34,11 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     width: 'fit-content',
-    padding: '8px 12px',
+    padding: '10px 14px',
     borderRadius: '999px',
-    background: 'rgba(255,255,255,0.08)',
+    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(99, 102, 241, 0.28))',
+    border: '1px solid rgba(255,255,255,0.16)',
+    boxShadow: '0 12px 26px rgba(15, 23, 42, 0.18)',
     color: '#fff',
     fontWeight: 700,
     fontSize: '13px',
@@ -188,7 +190,7 @@ export default function AuthPage() {
       <div style={styles.shell}>
         <section style={styles.hero}>
           <div>
-            <div style={styles.brand}>Issue Tracker</div>
+            <div style={styles.brand}>TaskForge</div>
             <h1 style={styles.heroTitle}>Work gets clearer when the board does.</h1>
             <p style={styles.heroText}>
               Track projects, assign tasks, move work through statuses, and keep visibility on who created and owns each item.
