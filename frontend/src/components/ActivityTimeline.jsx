@@ -89,7 +89,7 @@ export default function ActivityTimeline({ activities, loading }) {
   if (loading) {
     return (
       <section style={styles.section}>
-        <h2 style={styles.title}>Activity</h2>
+        <h2 style={styles.title}>Activity timeline</h2>
         <p style={styles.note}>Loading activity feed...</p>
       </section>
     );
@@ -97,13 +97,13 @@ export default function ActivityTimeline({ activities, loading }) {
 
   return (
     <section style={styles.section}>
-      <h2 style={styles.title}>Activity</h2>
+      <h2 style={styles.title}>Activity timeline</h2>
       <p style={styles.note}>Recent project updates — like Jira or Linear.</p>
 
       {activities.length === 0 ? (
         <div style={styles.empty}>
           <p style={styles.emptyTitle}>No activity yet</p>
-          <p style={{ margin: 0 }}>Create or update an issue to see the timeline.</p>
+          <p style={{ margin: 0 }}>Create, edit, assign, or close an issue to see the feed.</p>
         </div>
       ) : (
         <div style={styles.feed}>

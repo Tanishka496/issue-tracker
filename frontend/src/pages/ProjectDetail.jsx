@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getProject, addProjectMember, deleteProject } from '../services/projects';
 import { fetchTasks, createTask, deleteTask, editTask, updateTaskStatus, updateTaskAssignee } from '../services/tasks';
+import { fetchActivities } from '../services/activities';
+import ActivityTimeline from '../components/ActivityTimeline';
+import IssueCard from '../components/IssueCard';
 
 const styles = {
   page: {
@@ -180,6 +183,21 @@ const styles = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
     gap: '14px',
   },
+  filterBar: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '10px',
+    marginBottom: '14px',
+  },
+  filterField: {
+    display: 'grid',
+    gap: '6px',
+  },
+  filterLabel: {
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#475569',
+  },
   lane: {
     background: '#fff',
     border: '1px solid rgba(148, 163, 184, 0.2)',
@@ -251,6 +269,16 @@ const styles = {
     border: '1px solid #fecaca',
     marginBottom: '16px',
   },
+  filterInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    color: '#0f172a',
+    outline: 'none',
+  },
 };
 
 const getCurrentUserId = () => {
@@ -275,9 +303,15 @@ export default function ProjectDetail() {
   const [taskDescription, setTaskDescription] = useState('');
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('all');
+  const [taskPriorityFilter, setTaskPriorityFilter] = useState('all');
+  const [taskAssigneeFilter, setTaskAssigneeFilter] = useState('all');
   const [editingTaskId, setEditingTaskId] = useState('');
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
+  const [activities, setActivities] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const currentUserId = getCurrentUserId();
@@ -307,9 +341,22 @@ export default function ProjectDetail() {
     }
   };
 
+  const loadActivities = async () => {
+    try {
+      setActivityLoading(true);
+      const data = await fetchActivities(projectId);
+      setActivities(data);
+    } catch (err) {
+      console.error('Failed to load activity feed:', err.message);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadProject();
     loadTasks();
+    loadActivities();
   }, [projectId]);
 
   const handleAddTask = async (e) => {
@@ -332,6 +379,7 @@ export default function ProjectDetail() {
       setTaskPriority('medium');
       setTaskAssignee('');
       loadTasks();
+      loadActivities();
     } catch (err) {
       alert('Failed to add task: ' + err.message);
     }
@@ -343,6 +391,7 @@ export default function ProjectDetail() {
     try {
       await deleteTask(projectId, taskId);
       loadTasks();
+      loadActivities();
     } catch (err) {
       alert('Failed to delete task: ' + err.message);
     }
@@ -368,6 +417,7 @@ export default function ProjectDetail() {
       await editTask(projectId, taskId, { title: editingTaskTitle });
       cancelEditingTask();
       loadTasks();
+      loadActivities();
     } catch (err) {
       alert('Failed to update task: ' + err.message);
     }
@@ -377,6 +427,7 @@ export default function ProjectDetail() {
     try {
       await updateTaskStatus(projectId, taskId, status);
       loadTasks();
+      loadActivities();
     } catch (err) {
       alert('Failed to update task status: ' + err.message);
     }
@@ -386,6 +437,7 @@ export default function ProjectDetail() {
     try {
       await updateTaskAssignee(projectId, taskId, assignedTo || null);
       loadTasks();
+      loadActivities();
     } catch (err) {
       alert('Failed to update task assignee: ' + err.message);
     }
@@ -423,8 +475,31 @@ export default function ProjectDetail() {
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
   if (!project) return <p>Project not found</p>;
 
+  const normalizedSearch = taskSearch.trim().toLowerCase();
+  const filteredTasks = tasks.filter((task) => {
+    const statusValue = task.status || 'open';
+    const priorityValue = task.priority || 'medium';
+    const assigneeId = task.assignedTo?._id || task.assignedTo || '';
+    const assigneeText = task.assignedTo
+      ? `${task.assignedTo.name || ''} ${task.assignedTo.email || ''}`.toLowerCase()
+      : 'unassigned';
+    const creatorText = task.createdBy
+      ? `${task.createdBy.name || ''} ${task.createdBy.email || ''}`.toLowerCase()
+      : '';
+    const haystack = `${task.title || ''} ${task.description || ''} ${assigneeText} ${creatorText}`.toLowerCase();
+
+    if (taskStatusFilter !== 'all' && statusValue !== taskStatusFilter) return false;
+    if (taskPriorityFilter !== 'all' && priorityValue !== taskPriorityFilter) return false;
+    if (taskAssigneeFilter === 'assigned' && !assigneeId) return false;
+    if (taskAssigneeFilter === 'unassigned' && assigneeId) return false;
+    if (taskAssigneeFilter !== 'all' && taskAssigneeFilter !== 'assigned' && taskAssigneeFilter !== 'unassigned' && assigneeId !== taskAssigneeFilter) return false;
+    if (normalizedSearch && !haystack.includes(normalizedSearch)) return false;
+
+    return true;
+  });
+
   const groupedTasks = taskStatuses.reduce((acc, status) => {
-    acc[status] = tasks.filter(task => (task.status || 'open') === status);
+    acc[status] = filteredTasks.filter(task => (task.status || 'open') === status);
     return acc;
   }, {});
 
@@ -537,107 +612,92 @@ export default function ProjectDetail() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
-              <h2 style={styles.sectionTitle}>Tasks</h2>
-              <p style={styles.sectionNote}>Grouped by status for a cleaner workflow.</p>
+              <h2 style={styles.sectionTitle}>Issues</h2>
+              <p style={styles.sectionNote}>Search, filter, and scan issues like a real product team.</p>
             </div>
           </div>
 
-          {tasks.length === 0 ? (
-            <div style={{ padding: '20px 8px', color: '#64748b' }}>No tasks yet. Create one above!</div>
+          <div style={styles.filterBar}>
+            <label style={styles.filterField}>
+              <span style={styles.filterLabel}>Search</span>
+              <input
+                value={taskSearch}
+                onChange={(e) => setTaskSearch(e.target.value)}
+                placeholder="Search issues..."
+                style={styles.filterInput}
+              />
+            </label>
+
+            <label style={styles.filterField}>
+              <span style={styles.filterLabel}>Status</span>
+              <select value={taskStatusFilter} onChange={(e) => setTaskStatusFilter(e.target.value)} style={styles.filterInput}>
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="done">Closed</option>
+              </select>
+            </label>
+
+            <label style={styles.filterField}>
+              <span style={styles.filterLabel}>Priority</span>
+              <select value={taskPriorityFilter} onChange={(e) => setTaskPriorityFilter(e.target.value)} style={styles.filterInput}>
+                <option value="all">All</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+
+            <label style={styles.filterField}>
+              <span style={styles.filterLabel}>Assigned user</span>
+              <select value={taskAssigneeFilter} onChange={(e) => setTaskAssigneeFilter(e.target.value)} style={styles.filterInput}>
+                <option value="all">All</option>
+                <option value="assigned">Assigned</option>
+                <option value="unassigned">Unassigned</option>
+                {Array.isArray(project.members) && project.members.map((member) => (
+                  <option key={member._id} value={member._id}>
+                    {member.name || member.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {filteredTasks.length === 0 ? (
+            tasks.length === 0 ? (
+              <div style={{ padding: '28px 16px', textAlign: 'center', color: '#64748b' }}>
+                <p style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>No issues yet</p>
+                <p style={{ margin: 0 }}>Create your first issue above to start tracking work.</p>
+              </div>
+            ) : (
+              <div style={{ padding: '20px 8px', color: '#64748b' }}>
+                No issues match the current filters.
+              </div>
+            )
           ) : (
             <div style={styles.taskBoard}>
               {taskStatuses.map(status => (
                 <section key={status} style={styles.lane}>
                   <h3 style={styles.laneTitle}>{status.replace(/-/g, ' ')}</h3>
                   {groupedTasks[status].length === 0 ? (
-                    <p style={{ color: '#64748b', margin: 0 }}>No tasks</p>
+                    <p style={{ color: '#64748b', margin: 0 }}>No issues in this status</p>
                   ) : (
                     <div style={{ display: 'grid', gap: '12px' }}>
                       {groupedTasks[status].map(task => (
-                        <article key={task._id} style={styles.taskCard}>
-                          <div style={{ marginBottom: '12px' }}>
-                            {editingTaskId === task._id ? (
-                              <input
-                                value={editingTaskTitle}
-                                onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                style={styles.input}
-                              />
-                            ) : (
-                              <>
-                                <h4 style={{ margin: '0 0 8px', fontSize: '18px', color: '#0f172a' }}>{task.title}</h4>
-                                {task.description && (
-                                  <p style={{ margin: '0 0 8px', color: '#64748b', lineHeight: 1.5 }}>{task.description}</p>
-                                )}
-                              </>
-                            )}
-
-                            <div style={styles.badgeRow}>
-                              <span style={{ ...styles.badge, ...styles.badgeBlue }}>
-                                {new Date(task.createdAt).toLocaleDateString()}
-                              </span>
-                              <span style={{ ...styles.badge, ...styles.badgeYellow }}>
-                                Priority: {task.priority || 'medium'}
-                              </span>
-                              <span style={{ ...styles.badge, ...styles.badgeGreen }}>
-                                Created by: {task.createdBy ? task.createdBy.name : 'Unknown'}
-                              </span>
-                              <span style={{ ...styles.badge, ...styles.badgeYellow }}>
-                                Assigned to: {task.assignedTo ? (task.assignedTo.name || task.assignedTo.email) : 'Unassigned'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gap: '10px' }}>
-                            <label style={{ display: 'grid', gap: '6px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>
-                              Status
-                              <select
-                                value={task.status || 'open'}
-                                onChange={(e) => handleTaskStatusChange(task._id, e.target.value)}
-                                style={styles.statusSelect}
-                              >
-                                <option value="open">open</option>
-                                <option value="in-progress">in-progress</option>
-                                <option value="done">done</option>
-                              </select>
-                            </label>
-
-                            <label style={{ display: 'grid', gap: '6px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>
-                              Assigned to
-                              <select
-                                value={task.assignedTo?._id || task.assignedTo || ''}
-                                onChange={(e) => handleTaskAssigneeChange(task._id, e.target.value)}
-                                style={styles.statusSelect}
-                              >
-                                <option value="">Unassigned</option>
-                                {Array.isArray(project.members) && project.members.map(member => (
-                                  <option key={member._id} value={member._id}>
-                                    {member.name || member.email}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            <div style={styles.taskButtonRow}>
-                              <button type="button" onClick={() => handleDeleteTask(task._id)} style={styles.dangerButton}>
-                                Delete
-                              </button>
-                              {editingTaskId === task._id ? (
-                                <>
-                                  <button type="button" onClick={() => handleSaveTaskEdit(task._id)} style={styles.blueButton}>
-                                    Save
-                                  </button>
-                                  <button type="button" onClick={cancelEditingTask} style={styles.neutralButton}>
-                                    Cancel
-                                  </button>
-                                </>
-                              ) : (
-                                <button type="button" onClick={() => startEditingTask(task)} style={styles.neutralButton}>
-                                  Edit
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </article>
+                        <IssueCard
+                          key={task._id}
+                          task={task}
+                          members={project.members || []}
+                          editingTaskId={editingTaskId}
+                          editingTaskTitle={editingTaskTitle}
+                          onEditTitleChange={setEditingTaskTitle}
+                          onStartEdit={startEditingTask}
+                          onSaveEdit={handleSaveTaskEdit}
+                          onCancelEdit={cancelEditingTask}
+                          onDelete={handleDeleteTask}
+                          onStatusChange={handleTaskStatusChange}
+                          onAssigneeChange={handleTaskAssigneeChange}
+                        />
                       ))}
                     </div>
                   )}
@@ -646,6 +706,8 @@ export default function ProjectDetail() {
             </div>
           )}
         </section>
+
+        <ActivityTimeline activities={activities} loading={activityLoading} />
       </div>
     </div>
   );
