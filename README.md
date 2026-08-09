@@ -39,8 +39,13 @@ Most student projects stop at basic CRUD. TaskForge was built to go further — 
 **Auth:** JWT-based authentication
 
 ## 📸 Screenshots
+ Login/Sign up page
+ <img width="1588" height="865" alt="Screenshot 2026-08-09 182430" src="https://github.com/user-attachments/assets/3ad980fe-5dc2-4a03-9bb4-e88b9cbb3633" />
+ Dashboard page
+ <img width="1084" height="852" alt="Screenshot 2026-08-09 182522" src="https://github.com/user-attachments/assets/20226f6a-9b13-4724-a8d9-180b507faee5" />
+Analytics dashboard 
+<img width="838" height="792" alt="Screenshot 2026-08-09 182646" src="https://github.com/user-attachments/assets/a70ec817-fa84-4c6c-9c85-11e97fded9b5" />
 
-*(Add screenshots or a demo GIF here once available)*
 
 ## 🚀 Getting Started (Local Setup)
 
