@@ -1,8 +1,8 @@
-# TaskForge 
+# TaskForge 🎯
 
 A Jira-style bug and issue management tool built with the MERN stack — track issues, manage projects on a Kanban board, and monitor progress with a real-time analytics dashboard.
 
-🔗 **Live Demo:** [issue-tracker-tawny-nine.vercel.app](https://issue-tracker-tawny-nine.vercel.app/)
+🔗 **Try here:** [issue-tracker-tawny-nine.vercel.app](https://issue-tracker-tawny-nine.vercel.app/)
 🔗 **Backend API:** [taskforge-5mwp.onrender.com](https://taskforge-5mwp.onrender.com)
 
 > ⚠️ Backend is hosted on Render's free tier — the first request after inactivity may take 30-50 seconds to spin up.
@@ -12,7 +12,7 @@ A Jira-style bug and issue management tool built with the MERN stack — track i
 Try TaskForge instantly with the demo account:
 
 ```
-Email:    demo@taskforge.com
+Email:    demo@gmail.com
 Password: demo1234
 ```
 
