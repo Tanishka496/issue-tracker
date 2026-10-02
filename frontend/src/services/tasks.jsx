@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 const apiCall = (path, method = 'GET', body = null) =>
   fetch(path, {
     method,
@@ -13,19 +15,19 @@ const apiCall = (path, method = 'GET', body = null) =>
   });
 
 export const fetchTasks = (projectId) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks`);
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks`);
 
 export const createTask = (projectId, payload) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks`, "POST", payload);
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks`, "POST", payload);
 
 export const editTask = (projectId, taskId, payload) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks/${taskId}`, "PATCH", payload);
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks/${taskId}`, "PATCH", payload);
 
 export const updateTaskStatus = (projectId, taskId, status) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks/${taskId}/status`, "PATCH", { status });
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks/${taskId}/status`, "PATCH", { status });
 
 export const updateTaskAssignee = (projectId, taskId, assignedTo) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks/${taskId}/assignee`, "PATCH", { assignedTo });
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks/${taskId}/assignee`, "PATCH", { assignedTo });
 
 export const deleteTask = (projectId, taskId) => 
-  apiCall(`http://localhost:5000/api/projects/${projectId}/tasks/${taskId}`, "DELETE");
+  apiCall(`${API_BASE_URL}/projects/${projectId}/tasks/${taskId}`, "DELETE");

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 const apiCall = (path, method = 'GET', body = null) =>
   fetch(path, {
     method,
@@ -13,25 +15,25 @@ const apiCall = (path, method = 'GET', body = null) =>
   });
 
 export const fetchProjects = () => 
-  apiCall("http://localhost:5000/api/projects");
+  apiCall(`${API_BASE_URL}/projects`);
 
 export const fetchDeletedProjects = () => 
-  apiCall("http://localhost:5000/api/projects?includeDeleted=true");
+  apiCall(`${API_BASE_URL}/projects?includeDeleted=true`);
 
 export const createProject = (payload) => 
-  apiCall("http://localhost:5000/api/projects", "POST", payload);
+  apiCall(`${API_BASE_URL}/projects`, "POST", payload);
 
 export const getProject = (id) => 
-  apiCall(`http://localhost:5000/api/projects/${id}`);
+  apiCall(`${API_BASE_URL}/projects/${id}`);
 
 export const addProjectMember = (id, payload) => 
-  apiCall(`http://localhost:5000/api/projects/${id}/members`, "POST", payload);
+  apiCall(`${API_BASE_URL}/projects/${id}/members`, "POST", payload);
 
 export const updateProject = (id, payload) => 
-  apiCall(`http://localhost:5000/api/projects/${id}`, "PUT", payload);
+  apiCall(`${API_BASE_URL}/projects/${id}`, "PUT", payload);
 
 export const deleteProject = (id) => 
-  apiCall(`http://localhost:5000/api/projects/${id}`, "DELETE");
+  apiCall(`${API_BASE_URL}/projects/${id}`, "DELETE");
 
 export const restoreProject = (id) => 
-  apiCall(`http://localhost:5000/api/projects/${id}/restore`, "PATCH");
+  apiCall(`${API_BASE_URL}/projects/${id}/restore`, "PATCH");

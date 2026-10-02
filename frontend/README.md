@@ -1,5 +1,15 @@
 # React + Vite
 
+## Deployment
+
+Set the Vercel project environment variable below before rebuilding the frontend:
+
+```text
+VITE_API_URL=https://taskforge-5mwp.onrender.com/api
+```
+
+Vite injects environment variables during the build, so redeploy Vercel after adding or changing this value.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 const api = (path, body) =>
   fetch(path, {
     method: "POST",
@@ -9,5 +11,5 @@ const api = (path, body) =>
     return data;
   });
 
-export const register = (payload) => api("http://localhost:5000/api/auth/register", payload);
-export const login = (payload) => api("http://localhost:5000/api/auth/login", payload);
+export const register = (payload) => api(`${API_BASE_URL}/auth/register`, payload);
+export const login = (payload) => api(`${API_BASE_URL}/auth/login`, payload);

@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './api';
+
 const apiCall = (path) =>
   fetch(path, {
     headers: {
@@ -11,4 +13,4 @@ const apiCall = (path) =>
   });
 
 export const fetchActivities = (projectId) =>
-  apiCall(`http://localhost:5000/api/projects/${projectId}/activities`);
+  apiCall(`${API_BASE_URL}/projects/${projectId}/activities`);
