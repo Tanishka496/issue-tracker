@@ -3,6 +3,7 @@ import { API_BASE_URL } from './api';
 const apiCall = (path, method = 'GET', body = null) =>
   fetch(path, {
     method,
+    cache: "no-store",
     headers: { 
       "Content-Type": "application/json",
       "Authorization": `Bearer ${localStorage.getItem('token')}`

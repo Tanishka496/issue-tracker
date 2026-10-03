@@ -55,7 +55,13 @@ router.get('/', auth, async (req, res) => {
         const includeDeleted = req.query.includeDeleted === 'true';
         const query = includeDeleted
             ? { deleted: true, createdBy: req.user.id }
-            : { deleted: { $ne: true } };
+            : {
+                deleted: { $ne: true },
+                $or: [
+                    { createdBy: req.user.id },
+                    { members: req.user.id }
+                ]
+            };
 
         const projects = await Project.find(query)
             .populate('createdBy', 'name email')
@@ -69,9 +75,16 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Get single project
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
     try {
-        const project = await Project.findOne({ _id: req.params.id, deleted: { $ne: true } })
+        const project = await Project.findOne({
+            _id: req.params.id,
+            deleted: { $ne: true },
+            $or: [
+                { createdBy: req.user.id },
+                { members: req.user.id }
+            ]
+        })
             .populate('createdBy', 'name email')
             .populate('members', 'name email');
         if (!project) return res.status(404).json({ message: 'Not found' });
@@ -83,23 +96,27 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add a member to a project
-router.post('/:id/members', async (req, res) => {
+router.post('/:id/members', auth, async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ message: 'Member email required' });
 
-        const user = await require('../models/User').findOne({ email: email.trim().toLowerCase() });
+        const project = await Project.findById(req.params.id);
+        if (!project || project.deleted) return res.status(404).json({ message: 'Not found' });
+        if (project.createdBy.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Only the project creator can add members' });
+        }
+
+        const user = await User.findOne({ email: email.trim().toLowerCase() });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        const project = await Project.findByIdAndUpdate(
+        const updatedProject = await Project.findByIdAndUpdate(
             req.params.id,
             { $addToSet: { members: user._id } },
             { new: true }
         ).populate('createdBy', 'name email').populate('members', 'name email');
 
-        if (!project) return res.status(404).json({ message: 'Not found' });
-
-        res.json(project);
+        res.json(updatedProject);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error' });

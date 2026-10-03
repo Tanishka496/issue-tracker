@@ -434,6 +434,10 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    sessionStorage.clear();
+    setProjects([]);
+    setDeletedProjects([]);
+    setTaskSummary({ active: 0, completed: 0 });
     navigate('/');
   };
 
